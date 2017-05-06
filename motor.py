@@ -4,11 +4,12 @@ class Motor:
     def __init__(self, gpio):
         self.gpio = gpio
         self.position = 0
+        pigpio.pi().set_mode(self.gpio, pigpio.OUTPUT)
 
 class Integrator:
     def __init__(self, motor):
         self.motor = motor
-        self.pulseBuffer = []
+
 
     def integrate(self, command):
 
@@ -16,8 +17,10 @@ class Integrator:
             return
         deltaPos = command.position - self.motor.position
         microsBetweenPulses = 1000000 / command.velocity
+        pulseBuffer = []
         for x in range(0, abs(deltaPos)):
-            self.pulseBuffer.append(Pulse(1, microsBetweenPulses))
+            pulseBuffer.append(Pulse(1, microsBetweenPulses))
+        return pulseBuffer
 
 class Command:
     def __init__(self, p, v):

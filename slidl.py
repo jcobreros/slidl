@@ -1,26 +1,36 @@
 import pigpio
 import time;
-from pulseDriver import PulseDriver
+from pigpioFIFO import pigpioFIFO
 from motor import Motor, Integrator, Command
 
 motor = Motor(17)
 integrator = Integrator(motor)
-pd = PulseDriver(integrator)
+
+fifo = pigpioFIFO(100, 0.2)
 
 time.sleep(1)
 #Command(pos, vel)
 cmd = Command(96, 50)
-integrator.integrate(cmd)
+pulses = integrator.integrate(cmd)
+for p in pulses:
+    fifo.pulseBuffer.append(p)
+
 cmd = Command(192, 100)
-integrator.integrate(cmd)
+pulses = integrator.integrate(cmd)
+for p in pulses:
+    fifo.pulseBuffer.append(p)
+
 cmd = Command(384, 200)
-integrator.integrate(cmd)
+pulses = integrator.integrate(cmd)
+for p in pulses:
+    fifo.pulseBuffer.append(p)
 
 time.sleep(1)
 
-while pd.pi.wave_tx_at() != 9999:
+while fifo.pi.wave_tx_at() != 9999:
     time.sleep(0.2)
 
 time.sleep(1)
-pd.pi.wave_tx_stop()
-pd.pi.stop()
+
+fifo.pi.wave_tx_stop()
+fifo.pi.stop()

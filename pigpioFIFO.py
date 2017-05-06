@@ -1,29 +1,27 @@
 import pigpio
 import time, threading
 
-class PulseDriver:
+class pigpioFIFO:
     WAVE_MODE_ONE_SHOT = 0
     WAVE_MODE_REPEAT = 1
     WAVE_MODE_ONE_SHOT_SYNC = 2
     WAVE_MODE_REPEAT_SYNC = 3
 
-    def __init__(self, integrator):
-        self.pulsesPerPacket = 100
-        self.timerPeriod = 0.2
+    def __init__(self, pulsesPerPacket, timerPeriod):
+        self.pulsesPerPacket = pulsesPerPacket
+        self.timerPeriod = timerPeriod
         self.pulseDuration = 200
 
-        self.integrator = integrator
+        self.pulseBuffer = []
 
         self.pi = pigpio.pi()
         self.pi.wave_clear()
-        #-1000 because addWave is always receiveing the max size instead of what's asked for
+
         self.maxPulses = self.pi.wave_get_max_pulses()
 
         self.runningWids = []
         self.runningPulses = []
         self.totalPulsesInQueue = 0
-
-        self.running = False
 
         self.cb3 = self.pi.callback(17)
         self.counter = 0;
@@ -33,12 +31,8 @@ class PulseDriver:
         print("Max Seconds", self.pi.wave_get_max_micros()/1000000)
         print("Max Pulses", self.pi.wave_get_max_pulses())
 
-        self.setGpioMode([self.integrator.motor.gpio])
         self.timerCallback()
 
-    def setGpioMode(self, gpios):
-        for gpio in gpios:
-            self.pi.set_mode(gpio, pigpio.OUTPUT)
 
     def addWave(self, wf):
 
@@ -62,18 +56,18 @@ class PulseDriver:
         print("Pulse Counter", self.cb3.tally())
         availableSpace = self.maxPulses - self.totalPulsesInQueue
         #print("Available",availableSpace)
-        while availableSpace > 0 and len(self.integrator.pulseBuffer) > 0:
+        while availableSpace > 0 and len(self.pulseBuffer) > 0:
             wf = []
-            numPulsesToRequest = min( self.pulsesPerPacket, len(self.integrator.pulseBuffer) )
+            numPulsesToRequest = min( self.pulsesPerPacket, len(self.pulseBuffer) )
             for x in range(0, numPulsesToRequest):
-                thisPulse = self.integrator.pulseBuffer.pop(0)
-                wf.append(pigpio.pulse(1<<self.integrator.motor.gpio, 0, self.pulseDuration))
-                wf.append(pigpio.pulse(0, 1<<self.integrator.motor.gpio, thisPulse.t - self.pulseDuration))
+                thisPulse = self.pulseBuffer.pop(0)
+                wf.append(pigpio.pulse(1<<17, 0, self.pulseDuration))
+                wf.append(pigpio.pulse(0, 1<<17, thisPulse.t - self.pulseDuration))
 
             if len(wf) > 0:
                 self.addWave(wf)
                 availableSpace = self.maxPulses - self.totalPulsesInQueue
-                
+
         self.popUnusedWIDs()
         threading.Timer(self.timerPeriod, self.timerCallback).start()
 
