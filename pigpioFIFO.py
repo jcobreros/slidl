@@ -1,6 +1,7 @@
-#pigpio makes it possible to send waves (series of pulses) to a gpio
-#it also allows to start a wave after the previous one has finished
-#however, this process is manual. The user has to keep track of sent waves, wave IDs, not exceeding the maximum number of waves, and cleaning up after himself
+#pigpio makes it possible to send waves (series of pulses) to a gpio using DMA
+#it also allows to start a wave after the previous one has finished. This is awesome.
+#However, this process is manual. The user has to keep track of sent waves, wave IDs, not exceeding the maximum number of waves,
+#and cleaning up after himself
 
 #pigpioFIFO simplifies the usage of pigpio by exposing an unlimited fifo to the user
 #the user just has to add pulses to the fifo, and pigpioFIFO manages everything else
@@ -28,7 +29,7 @@ class pigpioFIFO:
         self.pi = pigpio.pi()
         self.pi.wave_clear()
 
-        #Laximum number of pulses pigpio accepts in it's queue
+        #Maximum number of pulses pigpio accepts in it's queue
         self.maxPulses = self.pi.wave_get_max_pulses()
 
         #Each chunk of pulses is given an ID by pigpio. In this list we store all the currently sent IDs that are waiting to be run
