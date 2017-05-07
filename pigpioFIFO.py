@@ -8,6 +8,7 @@
 
 import pigpio
 import time, threading
+from Queue import *
 
 class pigpioFIFO:
     WAVE_MODE_ONE_SHOT = 0
@@ -22,7 +23,7 @@ class pigpioFIFO:
 
         #List where pulses are stored before being sent to pigpio
         #pulses are added using the "add" method
-        self.pulseBuffer = []
+        self.pulseBuffer = Queue()
 
         self.pi = pigpio.pi()
         self.pi.wave_clear()
@@ -50,7 +51,7 @@ class pigpioFIFO:
     #Public method to add pulses to the pulseBuffer fifo
     def add(self, pulses):
         for p in pulses:
-            self.pulseBuffer.append(p)
+            self.pulseBuffer.put(p)
 
     #This method runs every timerPeriod. It checks if there are pulses waiting to be sent to pigpio (in pulseBuffer)
     #and wether there is enough space in pigpio
@@ -58,14 +59,13 @@ class pigpioFIFO:
         print("Pulse Counter", self.cb3.tally())
         availableSpace = self.maxPulses - self.totalPulsesInQueue
         #print("Available",availableSpace)
-        while availableSpace > 0 and len(self.pulseBuffer) > 0:
+        while availableSpace > 0 and not self.pulseBuffer.empty():
             #We construct a new waveform (a series of pulses)
             wf = []
-            numPulsesToSend = min( self.pulsesPerPacket, len(self.pulseBuffer) )
+            numPulsesToSend = min( self.pulsesPerPacket, self.pulseBuffer.qsize() )
             for x in range(0, numPulsesToSend):
-                thisPulse = self.pulseBuffer.pop(0)
-                wf.append(pigpio.pulse(1<<17, 0, self.pulseDuration))
-                wf.append(pigpio.pulse(0, 1<<17, thisPulse.t - self.pulseDuration))
+                wf.append(self.pulseBuffer.get())
+
             #If the waveform is not empty, we send it to pigpio
             if len(wf) > 0:
                 self.addWaveToPigpio(wf)

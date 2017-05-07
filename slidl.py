@@ -6,7 +6,7 @@ from motor import Motor, Integrator, Command
 motor = Motor(17)
 integrator = Integrator(motor)
 
-fifo = pigpioFIFO(100, 0.2)
+fifo = pigpioFIFO(200, 0.2)
 
 time.sleep(1)
 #Command(pos, vel)

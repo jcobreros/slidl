@@ -9,7 +9,7 @@ class Motor:
 class Integrator:
     def __init__(self, motor):
         self.motor = motor
-
+        self.pulseDuration = 200
 
     def integrate(self, command):
 
@@ -19,7 +19,8 @@ class Integrator:
         microsBetweenPulses = 1000000 / command.velocity
         pulseBuffer = []
         for x in range(0, abs(deltaPos)):
-            pulseBuffer.append(Pulse(1, microsBetweenPulses))
+            pulseBuffer.append(pigpio.pulse(1<<self.motor.gpio, 0, self.pulseDuration))
+            pulseBuffer.append(pigpio.pulse(0, 1<<self.motor.gpio, microsBetweenPulses - self.pulseDuration))
         return pulseBuffer
 
 class Command:
