@@ -1,11 +1,17 @@
+#pigpio makes it possible to send waves (series of pulses) to a gpio
+#it also allows to start a wave after the previous one has finished
+#however, this process is manual. The user has to keep track of sent waves, wave IDs, not exceeding the maximum number of waves, and cleaning up after himself
+
+#pigpioFIFO simplifies the usage of pigpio by exposing a fifo to the user
+#the user just has to add pulses to the fifo, and pigpioFIFO manages everything else
+
+
 import pigpio
 import time, threading
 
 class pigpioFIFO:
     WAVE_MODE_ONE_SHOT = 0
-    WAVE_MODE_REPEAT = 1
     WAVE_MODE_ONE_SHOT_SYNC = 2
-    WAVE_MODE_REPEAT_SYNC = 3
 
     def __init__(self, pulsesPerPacket, timerPeriod):
         self.pulsesPerPacket = pulsesPerPacket
@@ -31,28 +37,13 @@ class pigpioFIFO:
         print("Max Seconds", self.pi.wave_get_max_micros()/1000000)
         print("Max Pulses", self.pi.wave_get_max_pulses())
 
-        self.timerCallback()
+        self.checkAndSend()
 
+    def add(self, pulses):
+        for p in pulses:
+            self.pulseBuffer.append(p)
 
-    def addWave(self, wf):
-
-        mode = self.WAVE_MODE_ONE_SHOT_SYNC
-        current = self.pi.wave_tx_at()
-        if(current == 9998 or current == 9999):
-            mode = self.WAVE_MODE_ONE_SHOT
-            print(current)
-
-        self.pi.wave_add_generic(wf)
-        wid = self.pi.wave_create()
-
-        self.pi.wave_send_using_mode(wid, mode)
-        self.runningWids.append(wid)
-        self.runningPulses.append(len(wf))
-        self.totalPulsesInQueue+=len(wf)
-
-        #print(self.pi.wave_tx_at(), self.runningWids, self.totalPulsesInQueue)
-
-    def timerCallback(self):
+    def checkAndSend(self):
         print("Pulse Counter", self.cb3.tally())
         availableSpace = self.maxPulses - self.totalPulsesInQueue
         #print("Available",availableSpace)
@@ -65,11 +56,27 @@ class pigpioFIFO:
                 wf.append(pigpio.pulse(0, 1<<17, thisPulse.t - self.pulseDuration))
 
             if len(wf) > 0:
-                self.addWave(wf)
+                self.addWaveToPigpio(wf)
                 availableSpace = self.maxPulses - self.totalPulsesInQueue
 
         self.popUnusedWIDs()
-        threading.Timer(self.timerPeriod, self.timerCallback).start()
+        threading.Timer(self.timerPeriod, self.checkAndSend).start()
+
+    def addWaveToPigpio(self, wf):
+        current = self.pi.wave_tx_at()
+        if(current == 9998 or current == 9999):
+            mode = self.WAVE_MODE_ONE_SHOT
+            print(current)
+        else:
+            mode = self.WAVE_MODE_ONE_SHOT_SYNC
+        
+        self.pi.wave_add_generic(wf)
+        wid = self.pi.wave_create()
+
+        self.pi.wave_send_using_mode(wid, mode)
+        self.runningWids.append(wid)
+        self.runningPulses.append(len(wf))
+        self.totalPulsesInQueue+=len(wf)
 
     def popUnusedWIDs(self):
         #Clean up unused WIDs

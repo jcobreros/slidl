@@ -12,18 +12,15 @@ time.sleep(1)
 #Command(pos, vel)
 cmd = Command(96, 50)
 pulses = integrator.integrate(cmd)
-for p in pulses:
-    fifo.pulseBuffer.append(p)
+fifo.add(pulses)
 
 cmd = Command(192, 100)
 pulses = integrator.integrate(cmd)
-for p in pulses:
-    fifo.pulseBuffer.append(p)
+fifo.add(pulses)
 
 cmd = Command(384, 200)
 pulses = integrator.integrate(cmd)
-for p in pulses:
-    fifo.pulseBuffer.append(p)
+fifo.add(pulses)
 
 time.sleep(1)
 
