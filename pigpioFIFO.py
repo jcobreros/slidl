@@ -64,6 +64,8 @@ class pigpioFIFO:
             wf = []
             numPulsesToSend = min( self.pulsesPerPacket, self.pulseBuffer.qsize() )
             for x in range(0, numPulsesToSend):
+                #Note: to pigpio a pulse is a state change. A stepper pulse will always be two pigpio pulses. One for ON, and one for OFF.
+                #So this loop should always run an even number of times or we are doing something wrong
                 wf.append(self.pulseBuffer.get())
 
             #If the waveform is not empty, we send it to pigpio
