@@ -20,7 +20,6 @@ class pigpioFIFO:
         self.pulsesPerPacket = pulsesPerPacket
         #How often to check if we can send more pulses
         self.timerPeriod = timerPeriod
-        self.pulseDuration = 200
 
         #List where pulses are stored before being sent to pigpio
         #pulses are added using the "add" method
@@ -51,6 +50,8 @@ class pigpioFIFO:
 
     #Public method to add pulses to the pulseBuffer fifo
     def add(self, pulses):
+        if pulses == None:
+            return
         for p in pulses:
             self.pulseBuffer.put(p)
 

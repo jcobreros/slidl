@@ -10,16 +10,7 @@ fifo = pigpioFIFO(200, 0.2)
 
 time.sleep(1)
 #Command(pos, vel)
-cmd = Command(96, 50)
-pulses = integrator.integrate(cmd)
-fifo.add(pulses)
-
-cmd = Command(192, 100)
-pulses = integrator.integrate(cmd)
-fifo.add(pulses)
-
-cmd = Command(384, 200)
-pulses = integrator.integrate(cmd)
+pulses = integrator.integrate(1600)
 fifo.add(pulses)
 
 time.sleep(1)
