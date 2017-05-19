@@ -1,5 +1,6 @@
 import pigpio
 import math
+import time
 
 class Motor:
     def __init__(self, gpio):
@@ -18,44 +19,53 @@ class Integrator:
         self.pulseDuration = 1000
 
     def integrate(self, pos):
-        file = open("times.csv", "w")
+        print("New Movement to", pos)
+        #Get ramp up, steady and ramp down segments
         commands = self.calculateTrapezoidalProfile(pos - self.motor.position, 0, 0)
+        #array where we store pulses to send
         pulseBuffer = []
+        totalTime = 0
+        #f = open('motor.csv', 'w')
         for c in commands:
-            print (c.position, c.acceleration)
+            #We calculate nextTime in an iterative way
+            if(c.acceleration >= 0):
+                #Accelerating: Steps go from 0 to N
+                accelStepNumber = 0
+                accelStepDir = 1
+            else:
+                #Decelerating: Steps go from N to 0
+                accelStepNumber = c.position - 1
+                accelStepDir = -1
+            #nextTime for step 0
+            c0 = math.sqrt(2/self.motor.acceleration)
+
+
+            print ("Command","Pos", c.position,"Acc", c.acceleration)
             targetPosition = self.motor.position + c.position
+
             while targetPosition - self.motor.position > 0:
                 if(c.acceleration != 0):
-                    discriminant = math.pow(self.motor.velocity, 2) + (4 * c.acceleration)
-                    file.write(str(discriminant) + ";" + str(self.motor.velocity) + ";\r\n")
-
-                    if discriminant < 0:
-                        print("Zero!", discriminant)
-                        discriminant = 0
-                    nextTime = (- self.motor.velocity + math.sqrt(discriminant) ) / (2 * c.acceleration)
-                    #print(nextTime, nextTime2, self.motor.velocity)
-
-                    self.motor.velocity += c.acceleration * nextTime
-
+                    nextTime = c0 * ( math.sqrt(accelStepNumber + 1) - math.sqrt(accelStepNumber) )
+                    self.motor.velocity = 1 / nextTime
                 else:
                     if(self.motor.velocity == 0):
+                        #if not accelerating and speed = 0, we can't move!
                         return
-                    #self.motor.velocity = self.motor.maxVelocity
-                    print("Vel", self.motor.velocity)
                     nextTime = 1 / self.motor.velocity
 
-                self.motor.position += self.motor.velocity * nextTime
-
-                #print("V", self.motor.velocity, "term", term, "NextTime", nextTime)
+                self.motor.position += 1
+                accelStepNumber+=accelStepDir
+                totalTime+=nextTime
+                print("Next",nextTime,"V", self.motor.velocity,"P", self.motor.position)
+                #csvLine = (str(totalTime) + ";" + str(self.motor.velocity) +"\n").replace('.', ',')
+                #f.write(csvLine)  # python will convert \n to os.linesep
 
                 nextTime = math.floor(nextTime * 1000000)
-                #file.write(str(int(nextTime)) + "\r\n")
-
-                if (nextTime < 10):
-                    print nextTime
                 pulseBuffer.append(pigpio.pulse(1<<self.motor.gpio, 0, self.pulseDuration))
                 pulseBuffer.append(pigpio.pulse(0, 1<<self.motor.gpio, nextTime - self.pulseDuration))
+
         print "Done"
+        #f.close()  # you can omit in most cases as the destructor will call it
         return pulseBuffer
 
     def calculateTrapezoidalProfile(self, deltaPos, vIni, vEnd):
@@ -65,12 +75,15 @@ class Integrator:
 
         #v' = v + a*t --> t = (v' - v) / a
         timeToMaxSpeed = (self.motor.maxVelocity - vIni) / self.motor.acceleration
-        print("t2s", timeToMaxSpeed)
-        #p' = p + v*t + a*t^2
-        distanceToMaxSpeed = round(vIni * timeToMaxSpeed + 0.5 * self.motor.acceleration * math.pow(timeToMaxSpeed, 2))
-        print("d2s", distanceToMaxSpeed)
+        print("Time to Max Speed", timeToMaxSpeed)
+
+        distanceToMaxSpeed = vIni * timeToMaxSpeed + 0.5 * self.motor.acceleration * math.pow(timeToMaxSpeed, 2)
+        print("Distance to Max Speed", distanceToMaxSpeed)
+
         if distanceToMaxSpeed >= (deltaPos / 2):
-            triangularShape = True
+            #Triangular profile
+            commands.append(Command(distanceToMaxSpeed/2, self.motor.acceleration))
+            commands.append(Command(distanceToMaxSpeed/2, -self.motor.acceleration))
         else:
             #Trapezoidal profile
             commands.append(Command(distanceToMaxSpeed, self.motor.acceleration))
