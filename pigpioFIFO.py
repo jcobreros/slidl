@@ -23,7 +23,7 @@ class pigpioFIFO:
 
         #List where pulses are stored before being sent to pigpio
         #pulses are added using the "add" method
-        self.pulseBuffer = Queue()
+        self.pulseBuffer = []
 
         self.pi = pigpio.pi()
         self.pi.wave_clear()
@@ -50,10 +50,8 @@ class pigpioFIFO:
 
     #Public method to add pulses to the pulseBuffer fifo
     def add(self, pulses):
-        if pulses == None:
-            return
-        for p in pulses:
-            self.pulseBuffer.put(p)
+        if pulses != None:
+            self.pulseBuffer.extend(pulses)
 
     #This method runs every timerPeriod. It checks if there are pulses waiting to be sent to pigpio (in pulseBuffer)
     #and wether there is enough space in pigpio
@@ -61,14 +59,11 @@ class pigpioFIFO:
         print("Pulse Counter", self.cb3.tally())
         availableSpace = self.maxPulses - self.totalPulsesInQueue
         #print("Available",availableSpace)
-        while availableSpace > 0 and not self.pulseBuffer.empty():
+        while availableSpace > self.pulsesPerPacket and len(self.pulseBuffer) > 0:
             #We construct a new waveform (a series of pulses)
-            wf = []
-            numPulsesToSend = min( self.pulsesPerPacket, self.pulseBuffer.qsize() )
-            for x in range(0, numPulsesToSend):
-                #Note: to pigpio a pulse is a state change. A stepper pulse will always be two pigpio pulses. One for ON, and one for OFF.
-                #So this loop should always run an even number of times or we are doing something wrong
-                wf.append(self.pulseBuffer.get())
+            numPulsesToSend = min( self.pulsesPerPacket, len(self.pulseBuffer) )
+            wf = self.pulseBuffer[:numPulsesToSend]
+            self.pulseBuffer = self.pulseBuffer[numPulsesToSend:]
 
             #If the waveform is not empty, we send it to pigpio
             if len(wf) > 0:

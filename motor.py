@@ -7,8 +7,8 @@ class Motor:
         self.gpio = gpio
         self.position = 0       #steps
         self.velocity = 0       #steps/s
-        self.acceleration = 100.0  #steps/s2
-        self.maxVelocity = 200.0   #steps/s
+        self.acceleration = 2000.0  #steps/s2
+        self.maxVelocity = 4000.0   #steps/s
 
         pigpio.pi().set_mode(self.gpio, pigpio.OUTPUT)
 
@@ -16,7 +16,7 @@ class Motor:
 class Integrator:
     def __init__(self, motor):
         self.motor = motor
-        self.pulseDuration = 1000
+        self.pulseDuration = 200
 
     def integrate(self, pos):
         print("New Movement to", pos)
@@ -47,6 +47,7 @@ class Integrator:
                 if(c.acceleration != 0):
                     nextTime = c0 * ( math.sqrt(accelStepNumber + 1) - math.sqrt(accelStepNumber) )
                     self.motor.velocity = 1 / nextTime
+                    accelStepNumber+=accelStepDir
                 else:
                     if(self.motor.velocity == 0):
                         #if not accelerating and speed = 0, we can't move!
@@ -54,9 +55,9 @@ class Integrator:
                     nextTime = 1 / self.motor.velocity
 
                 self.motor.position += 1
-                accelStepNumber+=accelStepDir
+
                 totalTime+=nextTime
-                print("Next",nextTime,"V", self.motor.velocity,"P", self.motor.position)
+                #print("Next",nextTime,"V", self.motor.velocity,"P", self.motor.position)
                 #csvLine = (str(totalTime) + ";" + str(self.motor.velocity) +"\n").replace('.', ',')
                 #f.write(csvLine)  # python will convert \n to os.linesep
 
