@@ -8,8 +8,8 @@ class Motor:
         self.gpio = gpio
         self.position = 0       #steps
         self.velocity = 0       #steps/s
-        self.acceleration = 4000.0  #steps/s2
-        self.maxVelocity = 8000.0   #steps/s
+        self.acceleration = 12000.0  #steps/s2
+        self.maxVelocity = 6000.0   #steps/s
 
         pigpio.pi().set_mode(self.gpio, pigpio.OUTPUT)
 
@@ -22,6 +22,7 @@ class Integrator:
         self.currentCommandStep = 0
         self.lastCommand = {"pos" : 0, "vel": 0, "acc": 0}
         self.pulseBuffer = []
+        self.pulseBufferLoopable = False
 
     def g00(self, pos):
         print("New Movement to", pos)
@@ -30,12 +31,17 @@ class Integrator:
 
     @profile
     def integrate(self, steps = -1):
+        if len(self.commandQueue) == 0:
+            return []
         #array where we store pulses to send
-        if len(self.commandQueue) > 0 and steps < self.commandQueue[0].position - self.currentCommandStep:
-            if self.lastCommand["pos"] == self.commandQueue[0].position and self.lastCommand["acc"] == self.commandQueue[0].acceleration and self.commandQueue[0].acceleration == 0:
+
+        if steps < self.commandQueue[0].position - self.currentCommandStep:
+            if self.pulseBufferLoopable and self.commandQueue[0].acceleration == 0:
                 print("Reusing pulseBuffer")
                 self.currentCommandStep+=steps
                 return self.pulseBuffer
+        #If we didn't reuse the last pulseBuffer, let's see if we can reuse the next one
+        self.pulseBufferLoopable = True
 
         self.pulseBuffer = []
         while steps > 0 and len(self.commandQueue) > 0:
@@ -44,9 +50,11 @@ class Integrator:
             if(stepsForCommand > 0):
                 steps -= stepsForCommand
                 self.integrateSteps(stepsForCommand , self.pulseBuffer)
-                print(len(self.pulseBuffer))
 
             if(stepsForCommand == 0):
+                #We changed commands during this pulseBuffer, so it's not loopable
+                self.pulseBufferLoopable = False
+
                 self.currentCommandStep = 0
                 self.commandQueue.pop(0)
                 if len(self.commandQueue) == 0:

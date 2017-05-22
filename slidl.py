@@ -11,16 +11,13 @@ fifo = pigpioFIFO(2000, 0.1)
 fifo.callBack = integrator.integrate
 
 #Command(pos, vel)
-integrator.g00(100)
-#integrator.g00(200)
-#integrator.g00(1000)
-#integrator.g00(10000)
-#integrator.g00(20000)
+integrator.g00(1600)
+integrator.g00(16000)
 
 time.sleep(1)
 
 while fifo.pi.wave_tx_at() != 9999:
-    print_prof_data()
+    #print_prof_data()
     time.sleep(1)
 
 time.sleep(5)
