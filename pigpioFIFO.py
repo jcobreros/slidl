@@ -10,6 +10,7 @@
 import pigpio
 import time, threading
 from Queue import *
+from profiler import *
 
 class pigpioFIFO:
     WAVE_MODE_ONE_SHOT = 0
@@ -29,7 +30,7 @@ class pigpioFIFO:
         self.pi.wave_clear()
 
         #Maximum number of pulses pigpio accepts in it's queue
-        self.maxPulses = self.pi.wave_get_max_pulses()
+        self.maxPulses = self.pi.wave_get_max_pulses() - 1000
 
         #Each chunk of pulses is given an ID by pigpio. In this list we store all the currently sent IDs that are waiting to be run
         self.runningWids = []
@@ -38,47 +39,51 @@ class pigpioFIFO:
         #Sum of all lengths in runningPulses
         self.totalPulsesInQueue = 0
 
-        self.cb3 = self.pi.callback(17)
+        #self.cb3 = self.pi.callback(17)
         self.counter = 0;
 
-        print("Tally", self.cb3.tally())
+        #print("Tally", self.cb3.tally())
         #Info
         print("Max Seconds", self.pi.wave_get_max_micros()/1000000)
         print("Max Pulses", self.pi.wave_get_max_pulses())
 
+        self.callBack = None
         self.checkAndSend()
-
-    #Public method to add pulses to the pulseBuffer fifo
-    def add(self, pulses):
-        if pulses != None:
-            self.pulseBuffer.extend(pulses)
 
     #This method runs every timerPeriod. It checks if there are pulses waiting to be sent to pigpio (in pulseBuffer)
     #and wether there is enough space in pigpio
+    @profile
     def checkAndSend(self):
-        print("Pulse Counter", self.cb3.tally())
+        if self.callBack == None:
+            threading.Timer(self.timerPeriod, self.checkAndSend).start()
+            return
+        #print("Pulse Counter", self.cb3.tally())
+
         availableSpace = self.maxPulses - self.totalPulsesInQueue
-        #print("Available",availableSpace)
-        while availableSpace > self.pulsesPerPacket and len(self.pulseBuffer) > 0:
+
+        while availableSpace > self.pulsesPerPacket:
+            self.popUnusedWIDs()
             #We construct a new waveform (a series of pulses)
-            numPulsesToSend = min( self.pulsesPerPacket, len(self.pulseBuffer) )
-            wf = self.pulseBuffer[:numPulsesToSend]
-            self.pulseBuffer = self.pulseBuffer[numPulsesToSend:]
+            wf = self.callBack(self.pulsesPerPacket / 2)
 
             #If the waveform is not empty, we send it to pigpio
-            if len(wf) > 0:
+            if wf != None and len(wf) > 0:
                 self.addWaveToPigpio(wf)
                 availableSpace = self.maxPulses - self.totalPulsesInQueue
-
+            else:
+                threading.Timer(self.timerPeriod, self.checkAndSend).start()
+                return
         self.popUnusedWIDs()
         threading.Timer(self.timerPeriod, self.checkAndSend).start()
 
+
+    @profile
     def addWaveToPigpio(self, wf):
         #Check the ID of the currently running wave
         current = self.pi.wave_tx_at()
         if(current == 9998 or current == 9999):
             mode = self.WAVE_MODE_ONE_SHOT
-            print(current)
+            print("UnderFlow!")
         else:
             #Try to synchronize the next wave with the previous wave
             mode = self.WAVE_MODE_ONE_SHOT_SYNC
@@ -92,11 +97,12 @@ class pigpioFIFO:
         self.runningPulses.append(len(wf))
         self.totalPulsesInQueue+=len(wf)
 
+    @profile
     def popUnusedWIDs(self):
         #Clean up unused WIDs (Waves that have already run and can be cleared to make up space)
         #We check the currently running WID and delete every wave that came before it, because it must have already run
         while len(self.runningWids) > 0 and self.pi.wave_tx_at() != self.runningWids[0]:
-            #print("Clean", self.pi.wave_tx_at(), self.runningWids)
+            print("Clean", self.pi.wave_tx_at(), self.runningWids)
             self.pi.wave_delete(self.runningWids[0])
             self.totalPulsesInQueue-=self.runningPulses[0]
             self.runningPulses.pop(0)
