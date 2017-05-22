@@ -38,21 +38,21 @@ class Integrator:
                 return self.pulseBuffer
 
         self.pulseBuffer = []
-
         while steps > 0 and len(self.commandQueue) > 0:
-            #print ("Command","Pos", self.commandQueue[0].position,"Acc", self.commandQueue[0].acceleration)
+            #print ("Command","Pos", self.commandQueue[0].position,"Acc", self.commandQueue[0].acceleration, self.currentCommandStep)
             stepsForCommand = int(min(steps, self.commandQueue[0].position - self.currentCommandStep))
-            steps -= stepsForCommand
-            self.integrateSteps(stepsForCommand , self.pulseBuffer)
+            if(stepsForCommand > 0):
+                steps -= stepsForCommand
+                self.integrateSteps(stepsForCommand , self.pulseBuffer)
+                print(len(self.pulseBuffer))
 
             if(stepsForCommand == 0):
                 self.currentCommandStep = 0
                 self.commandQueue.pop(0)
                 if len(self.commandQueue) == 0:
-                    return []
+                    return self.pulseBuffer
                 self.lastCommand["pos"] = self.commandQueue[0].position
                 self.lastCommand["acc"] = self.commandQueue[0].acceleration
-
         #f = open('motor.csv', 'w')
         #f.close()  # you can omit in most cases as the destructor will call it
         return self.pulseBuffer
@@ -60,6 +60,7 @@ class Integrator:
     def integrateSteps(self, steps, pulseBuffer):
         #We calculate nextTime in an iterative way
         #nextTime for step 0
+        print("Integrating", steps)
         c0 = math.sqrt(2/self.motor.acceleration)
 
         for s in xrange(int(steps)):

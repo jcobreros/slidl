@@ -12,10 +12,10 @@ fifo.callBack = integrator.integrate
 
 #Command(pos, vel)
 integrator.g00(100)
-integrator.g00(200)
-integrator.g00(1000)
-integrator.g00(10000)
-integrator.g00(20000)
+#integrator.g00(200)
+#integrator.g00(1000)
+#integrator.g00(10000)
+#integrator.g00(20000)
 
 time.sleep(1)
 

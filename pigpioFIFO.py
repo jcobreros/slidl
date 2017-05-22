@@ -65,7 +65,6 @@ class pigpioFIFO:
             self.popUnusedWIDs()
             #We construct a new waveform (a series of pulses)
             wf = self.callBack(self.pulsesPerPacket / 2)
-
             #If the waveform is not empty, we send it to pigpio
             if wf != None and len(wf) > 0:
                 self.addWaveToPigpio(wf)
